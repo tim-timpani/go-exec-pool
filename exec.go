@@ -76,14 +76,14 @@ func (e *ExecPool) AddCommand(cmd *exec.Cmd) (id string) {
 		jobId:       id,
 		command:     cmd,
 	}
-	log.Infof("job %s queues", id)
+	log.Debugf("job %s queues", id)
 	e.cmdQueue = append(e.cmdQueue, cmdRequest)
 	return
 }
 
 func (e *ExecPool) AddEnv(envSetting string) error {
 	if e.inputClosed {
-		return errors.New("setting an env var after the jobs have started is like closing the barn door after the horse is gone")
+		return errors.New("can not set env after jobs have started")
 	}
 	e.cmdEnv = append(e.cmdEnv, envSetting)
 	return nil
@@ -92,7 +92,7 @@ func (e *ExecPool) AddEnv(envSetting string) error {
 func (e *ExecPool) Start() error {
 
 	if e.inputClosed {
-		return errors.New("as much as I'd like to, I can not start again")
+		return errors.New("can not start again")
 	}
 	e.inputClosed = true
 
@@ -128,7 +128,7 @@ func (e *ExecPool) Start() error {
 
 func (e *ExecPool) Wait() error {
 	if !e.inputClosed {
-		return errors.New("attempting to wait for jobs that have not started - and I thought I was impatient")
+		return errors.New("attempting to wait for jobs that have not started")
 	}
 
 	// Wait for workers to be done and close the worker channel
@@ -140,10 +140,10 @@ func (e *ExecPool) Wait() error {
 		e.cmdOutput = append(e.cmdOutput, workerOutput)
 	}
 
-	// Kinda cheesy maybe need to just record the times
+	// Save stats
 	e.endTime = time.Now()
 	et := e.endTime.Sub(e.startTime)
-	log.Infof("total elapsed time %f seconds", et.Seconds())
+	log.Debugf("total elapsed time %f seconds", et.Seconds())
 	return nil
 }
 
@@ -159,7 +159,7 @@ func (e *ExecPool) GetResults(jobId string) *CommandResult {
 func (e *ExecPool) worker(wg *sync.WaitGroup) {
 	workerId := "worker-" + RandomString(8)
 	for job := range e.workerChanIn {
-		log.Infof("%s starting job %s", workerId, job.jobId)
+		log.Debugf("%s starting job %s", workerId, job.jobId)
 		outBuff := bytes.Buffer{}
 		errBuff := bytes.Buffer{}
 		job.command.Stdout = &outBuff
